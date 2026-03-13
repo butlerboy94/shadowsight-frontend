@@ -164,7 +164,7 @@ export default function CasesPage() {
                       type="button"
                       onClick={(e) => handleDelete(e, c.id)}
                       disabled={deleting === c.id}
-                      className="opacity-0 group-hover:opacity-100 p-1 rounded text-gray-600 hover:text-red-400 hover:bg-red-400/10 transition-all"
+                      className="p-1 rounded text-gray-700 hover:text-red-400 hover:bg-red-400/10 transition-colors"
                       title="Delete case"
                     >
                       <Trash2 size={14} />
