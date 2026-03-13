@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getReports, createReport, generatePdf, getCases, API_BASE } from "@/lib/api";
+import { getReports, createReport, generatePdf, getCases } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -180,7 +180,7 @@ export default function ReportsPage() {
                     <Badge className={`text-xs border ${statusColor[r.status] ?? "bg-gray-700 text-gray-300"}`}>{r.status}</Badge>
                     {r.pdf_url ? (
                       <Button size="sm"
-                        onClick={() => window.open(`${API_BASE}${r.pdf_url}`, "_blank")}
+                        onClick={() => window.open(r.pdf_url!, "_blank")}
                         className="bg-[#C4922A] hover:bg-[#A67822] text-white h-7 px-2">
                         <Download size={12} className="mr-1" /> PDF
                       </Button>
