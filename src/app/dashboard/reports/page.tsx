@@ -178,20 +178,20 @@ export default function ReportsPage() {
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <Badge className={`text-xs border ${statusColor[r.status] ?? "bg-gray-700 text-gray-300"}`}>{r.status}</Badge>
-                    {r.pdf_url ? (
+                    {r.pdf_url && (
                       <Button size="sm"
                         onClick={() => window.open(r.pdf_url!, "_blank")}
                         className="bg-[#C4922A] hover:bg-[#A67822] text-white h-7 px-2">
                         <Download size={12} className="mr-1" /> PDF
                       </Button>
-                    ) : (
-                      <Button size="sm"
-                        onClick={() => handleGeneratePdf(r.id)}
-                        disabled={generating === r.id}
-                        className="bg-[#C4922A] hover:bg-[#A67822] text-white h-7 px-2">
-                        {generating === r.id ? "..." : "Generate PDF"}
-                      </Button>
                     )}
+                    <Button size="sm"
+                      onClick={() => handleGeneratePdf(r.id)}
+                      disabled={generating === r.id}
+                      variant="outline"
+                      className="border-gray-700 text-gray-400 hover:text-white hover:bg-gray-800 h-7 px-2">
+                      {generating === r.id ? "..." : r.pdf_url ? "Regenerate" : "Generate PDF"}
+                    </Button>
                   </div>
                 </div>
               ))}
