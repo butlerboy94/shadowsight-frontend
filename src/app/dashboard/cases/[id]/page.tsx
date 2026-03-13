@@ -6,7 +6,7 @@ import { getCase, getPeople, getEvidence, getOsintResults, uploadEvidence, updat
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Users, Shield, Search, Calendar, Upload, X, Pencil, Check } from "lucide-react";
+import { ArrowLeft, Users, Shield, Search, Calendar, Upload, X, Pencil, Check, Clock } from "lucide-react";
 import { toast } from "sonner";
 
 interface Case {
@@ -347,6 +347,89 @@ export default function CaseDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Timeline */}
+      <CaseTimeline caseData={caseData} evidence={evidence} osint={osint} people={people} />
     </div>
+  );
+}
+
+interface TimelineEvent {
+  id: string;
+  time: Date;
+  label: string;
+  detail?: string;
+  color: string;
+}
+
+function CaseTimeline({ caseData, evidence, osint, people }: {
+  caseData: Case;
+  evidence: Evidence[];
+  osint: OsintResult[];
+  people: Person[];
+}) {
+  const events: TimelineEvent[] = [
+    {
+      id: "case-created",
+      time: new Date(caseData.created_at),
+      label: "Case created",
+      detail: caseData.title,
+      color: "bg-[#C4922A]",
+    },
+    ...people.map((p) => ({
+      id: `person-${p.id}`,
+      time: new Date(caseData.created_at), // people don't carry their own timestamp in this context
+      label: "Subject linked",
+      detail: `${p.first_name} ${p.last_name}`,
+      color: "bg-purple-500",
+    })),
+    ...evidence.map((e) => ({
+      id: `evidence-${e.id}`,
+      time: new Date(e.uploaded_at),
+      label: "Evidence uploaded",
+      detail: e.original_filename || "Unnamed file",
+      color: "bg-green-500",
+    })),
+    ...osint.map((r) => ({
+      id: `osint-${r.id}`,
+      time: new Date(r.created_at),
+      label: "OSINT query run",
+      detail: r.query_value,
+      color: "bg-blue-500",
+    })),
+  ].sort((a, b) => b.time.getTime() - a.time.getTime());
+
+  return (
+    <Card className="bg-gray-900 border-gray-800">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-white text-base flex items-center gap-2">
+          <Clock size={15} /> Case Timeline
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {events.length === 0 ? (
+          <div className="text-center py-8">
+            <Clock size={24} className="mx-auto text-gray-700 mb-2" />
+            <p className="text-gray-500 text-sm">No activity yet</p>
+          </div>
+        ) : (
+          <div className="relative">
+            <div className="absolute left-[7px] top-2 bottom-2 w-px bg-gray-800" />
+            <div className="space-y-4">
+              {events.map((ev) => (
+                <div key={ev.id} className="flex items-start gap-4">
+                  <div className={`w-3.5 h-3.5 rounded-full mt-0.5 shrink-0 ${ev.color}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm font-medium">{ev.label}</p>
+                    {ev.detail && <p className="text-gray-400 text-xs mt-0.5 truncate">{ev.detail}</p>}
+                    <p className="text-gray-600 text-xs mt-0.5">{ev.time.toLocaleString()}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

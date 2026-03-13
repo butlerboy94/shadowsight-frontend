@@ -54,6 +54,8 @@ export const deleteCase = (id: number) => api.delete(`/api/cases/${id}/`);
 // People
 export const getPeople = () => api.get("/api/people/");
 export const createPerson = (data: object) => api.post("/api/people/", data);
+export const updatePerson = (id: number, data: object) => api.patch(`/api/people/${id}/`, data);
+export const deletePerson = (id: number) => api.delete(`/api/people/${id}/`);
 
 // Evidence
 export const getEvidence = (caseId?: number) =>
@@ -70,6 +72,8 @@ export const getOsintResults = (caseId?: number) =>
 // Reports
 export const getReports = () => api.get("/api/reports/");
 export const createReport = (data: object) => api.post("/api/reports/", data);
+export const updateReport = (id: number, data: object) => api.patch(`/api/reports/${id}/`, data);
+export const deleteReport = (id: number) => api.delete(`/api/reports/${id}/`);
 export const generatePdf = (id: number) =>
   api.post(`/api/reports/${id}/generate_pdf/`);
 
