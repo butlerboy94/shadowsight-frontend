@@ -55,20 +55,11 @@ export default function BillingPage() {
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
 
-  useEffect(() => {
-    if (searchParams.get("success") === "1") {
-      toast.success("Subscription activated! Welcome to your new plan.");
-    } else if (searchParams.get("canceled") === "1") {
-      toast("Checkout canceled. Your plan was not changed.");
-    }
-  }, [searchParams]);
-
-  useEffect(() => {
-    getBillingStatus()
+  const fetchBilling = () => {
+    return getBillingStatus()
       .then((res) => {
         setOrg(res.data.organization);
         setSub(res.data.subscription);
-        // Sort plans in defined order
         const sorted = [...res.data.plans].sort(
           (a: Plan, b: Plan) => PLAN_ORDER.indexOf(a.id) - PLAN_ORDER.indexOf(b.id)
         );
@@ -76,7 +67,21 @@ export default function BillingPage() {
       })
       .catch(() => toast.error("Failed to load billing info."))
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(() => {
+    if (searchParams.get("success") === "1") {
+      toast.success("Subscription activated! Welcome to your new plan.");
+      // Delay refetch to give webhook time to process
+      setTimeout(() => fetchBilling(), 2000);
+    } else if (searchParams.get("canceled") === "1") {
+      toast("Checkout canceled. Your plan was not changed.");
+    }
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    fetchBilling();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleUpgrade = async (plan: Plan) => {
     const priceId = annual ? plan.stripe_price_id_annual : plan.stripe_price_id_monthly;
@@ -154,14 +159,6 @@ export default function BillingPage() {
                 {plans.find((p) => p.id === currentPlan)?.name || currentPlan}
               </div>
             </div>
-            {sub && (
-              <div>
-                <div className="text-gray-400 text-xs mb-1">Billing</div>
-                <div className="text-white font-medium">
-                  {plans.some((p) => p.stripe_price_id_annual === currentPriceId) ? "Annual" : "Monthly"}
-                </div>
-              </div>
-            )}
             <div>
               <div className="text-gray-400 text-xs mb-1">Seats Used</div>
               <div className="flex items-center gap-1.5 text-white font-medium">
@@ -169,6 +166,28 @@ export default function BillingPage() {
                 {org.member_count} / {org.seat_limit ?? "Custom"}
               </div>
             </div>
+            {sub && (() => {
+              const activePlan = plans.find((p) => p.id === currentPlan);
+              const isAnnual = plans.some((p) => p.stripe_price_id_annual === currentPriceId);
+              const currentPrice = isAnnual ? activePlan?.price_annual : activePlan?.price_monthly;
+              return (
+                <>
+                  <div>
+                    <div className="text-gray-400 text-xs mb-1">Billing Cycle</div>
+                    <div className="text-white font-medium">{isAnnual ? "Annual" : "Monthly"}</div>
+                  </div>
+                  {currentPrice && (
+                    <div>
+                      <div className="text-gray-400 text-xs mb-1">Current Price</div>
+                      <div className="text-white font-medium">
+                        ${currentPrice.toLocaleString()}
+                        <span className="text-gray-400 text-xs">/mo{isAnnual ? " · billed annually" : ""}</span>
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
             {sub && (
               <>
                 <div>
