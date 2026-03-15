@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Plus, X, Download, Trash2, Pencil, Check } from "lucide-react";
+import { FileText, Plus, X, Download, Trash2, Pencil, Check, Lock, Unlock } from "lucide-react";
 import { toast } from "sonner";
 
 interface Report {
@@ -24,8 +24,7 @@ interface Case { id: number; title: string; }
 
 const statusColor: Record<string, string> = {
   draft: "bg-gray-500/20 text-gray-400 border-gray-500/30",
-  final: "bg-green-500/20 text-green-400 border-green-500/30",
-  archived: "bg-[#C4922A]/20 text-[#C4922A] border-[#C4922A]/30",
+  finalized: "bg-green-500/20 text-green-400 border-green-500/30",
 };
 
 export default function ReportsPage() {
@@ -42,6 +41,21 @@ export default function ReportsPage() {
   const [editNotesId, setEditNotesId] = useState<number | null>(null);
   const [editNotes, setEditNotes] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
+  const [togglingStatus, setTogglingStatus] = useState<number | null>(null);
+
+  async function handleToggleStatus(r: Report) {
+    const next = r.status === "draft" ? "finalized" : "draft";
+    setTogglingStatus(r.id);
+    try {
+      await updateReport(r.id, { status: next });
+      setReports((prev) => prev.map((x) => x.id === r.id ? { ...x, status: next } : x));
+      toast.success(`Report ${next === "finalized" ? "finalized" : "reverted to draft"}`);
+    } catch {
+      toast.error("Failed to update status");
+    } finally {
+      setTogglingStatus(null);
+    }
+  }
 
   function fetchReports() {
     getReports()
@@ -222,7 +236,18 @@ export default function ReportsPage() {
                       )}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <Badge className={`text-xs border ${statusColor[r.status] ?? "bg-gray-700 text-gray-300"}`}>{r.status}</Badge>
+                      <Badge className={`text-xs border ${statusColor[r.status] ?? "bg-gray-700 text-gray-300"}`}>
+                        {r.status}
+                      </Badge>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleStatus(r)}
+                        disabled={togglingStatus === r.id}
+                        title={r.status === "draft" ? "Finalize report" : "Revert to draft"}
+                        className="p-1 rounded text-gray-600 hover:text-green-400 hover:bg-green-400/10 transition-colors disabled:opacity-50"
+                      >
+                        {r.status === "draft" ? <Lock size={14} /> : <Unlock size={14} />}
+                      </button>
                       {r.pdf_url && (
                         <Button size="sm"
                           onClick={() => window.open(r.pdf_url!, "_blank")}

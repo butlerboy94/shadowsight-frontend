@@ -15,6 +15,9 @@ import {
   Eye,
   LogOut,
   X,
+  UserCog,
+  Settings,
+  CreditCard,
 } from "lucide-react";
 
 const nav = [
@@ -25,6 +28,12 @@ const nav = [
   { href: "/dashboard/evidence", label: "Evidence", icon: Shield },
   { href: "/dashboard/reports", label: "Reports", icon: FileText },
   { href: "/dashboard/watchlist", label: "Watchlist", icon: Eye },
+];
+
+const teamNav = [
+  { href: "/dashboard/team", label: "Team", icon: UserCog },
+  { href: "/dashboard/billing", label: "Billing", icon: CreditCard },
+  { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
 interface SidebarProps {
@@ -52,9 +61,32 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5">
+      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         {nav.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
+          return (
+            <Link
+              key={href}
+              href={href}
+              onClick={onClose}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
+                active
+                  ? "bg-[#C4922A] text-white"
+                  : "text-gray-400 hover:text-white hover:bg-gray-800"
+              )}
+            >
+              <Icon size={16} />
+              {label}
+            </Link>
+          );
+        })}
+
+        <div className="pt-3 pb-1">
+          <p className="px-3 text-xs text-gray-600 uppercase tracking-wider font-medium">Account</p>
+        </div>
+        {teamNav.map(({ href, label, icon: Icon }) => {
+          const active = pathname === href || pathname.startsWith(href);
           return (
             <Link
               key={href}

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getCases, createCase, deleteCase } from "@/lib/api";
+import { getCases, createCase, deleteCase, getTeamMembers } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,14 @@ interface Case {
   status: string;
   reference_id: string;
   created_at: string;
+  assigned_to: number | null;
+}
+
+interface TeamMember {
+  id: number;
+  username: string;
+  first_name: string;
+  last_name: string;
 }
 
 const statusColor: Record<string, string> = {
@@ -39,6 +47,8 @@ export default function CasesPage() {
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [assignedTo, setAssignedTo] = useState<string>("");
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<number | null>(null);
 
@@ -48,15 +58,24 @@ export default function CasesPage() {
       .finally(() => setLoading(false));
   }
 
-  useEffect(() => { fetchCases(); }, []);
+  useEffect(() => {
+    fetchCases();
+    getTeamMembers().then((res) => setTeamMembers(res.data)).catch(() => {});
+  }, []);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     try {
-      await createCase({ title, description, status: "open" });
+      await createCase({
+        title,
+        description,
+        status: "open",
+        ...(assignedTo ? { assigned_to: Number(assignedTo) } : {}),
+      });
       setTitle("");
       setDescription("");
+      setAssignedTo("");
       setShowForm(false);
       fetchCases();
       toast.success("Case created successfully");
@@ -114,6 +133,24 @@ export default function CasesPage() {
                 <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Brief description"
                   className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500" />
               </div>
+              {teamMembers.length > 0 && (
+                <div className="space-y-1">
+                  <Label className="text-gray-300">Assign To</Label>
+                  <select
+                    value={assignedTo}
+                    onChange={(e) => setAssignedTo(e.target.value)}
+                    aria-label="Assign case to team member"
+                    className="w-full bg-gray-800 border border-gray-700 rounded-md px-3 py-2 text-white text-sm focus:outline-none focus:border-[#C4922A]"
+                  >
+                    <option value="">— Unassigned —</option>
+                    {teamMembers.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.first_name || m.last_name ? `${m.first_name} ${m.last_name}`.trim() : m.username}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div className="flex gap-2">
                 <Button type="submit" className="bg-[#C4922A] hover:bg-[#A67822] text-white" disabled={saving}>
                   {saving ? "Creating..." : "Create Case"}
