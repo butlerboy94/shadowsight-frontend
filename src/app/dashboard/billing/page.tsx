@@ -29,6 +29,7 @@ interface OrgData {
 
 interface SubData {
   status: string;
+  stripe_price_id: string;
   current_period_end: string | null;
   cancel_at_period_end: boolean;
   is_active: boolean;
@@ -115,6 +116,7 @@ export default function BillingPage() {
   }
 
   const currentPlan = org?.plan || "small_firm";
+  const currentPriceId = sub?.stripe_price_id || null;
 
   return (
     <div className="space-y-8">
@@ -152,6 +154,14 @@ export default function BillingPage() {
                 {plans.find((p) => p.id === currentPlan)?.name || currentPlan}
               </div>
             </div>
+            {sub && (
+              <div>
+                <div className="text-gray-400 text-xs mb-1">Billing</div>
+                <div className="text-white font-medium">
+                  {plans.some((p) => p.stripe_price_id_annual === currentPriceId) ? "Annual" : "Monthly"}
+                </div>
+              </div>
+            )}
             <div>
               <div className="text-gray-400 text-xs mb-1">Seats Used</div>
               <div className="flex items-center gap-1.5 text-white font-medium">
@@ -218,6 +228,9 @@ export default function BillingPage() {
             const isCurrent = plan.id === currentPlan;
             const isCustom = plan.price_monthly === null;
             const price = annual ? plan.price_annual : plan.price_monthly;
+            const selectedPriceId = annual ? plan.stripe_price_id_annual : plan.stripe_price_id_monthly;
+            const isCurrentInterval = isCurrent && currentPriceId === selectedPriceId;
+            const canSwitchInterval = isCurrent && !isCurrentInterval && currentPriceId !== null;
 
             return (
               <div
@@ -279,10 +292,19 @@ export default function BillingPage() {
                 </ul>
 
                 {/* CTA */}
-                {isCurrent ? (
+                {isCurrentInterval ? (
                   <div className="text-center text-gray-500 text-sm py-2 border border-[#2a2a2a] rounded-lg">
                     Current plan
                   </div>
+                ) : canSwitchInterval ? (
+                  <button
+                    type="button"
+                    onClick={() => handleUpgrade(plan)}
+                    disabled={checkoutLoading === plan.id}
+                    className="w-full bg-[#222] hover:bg-[#2a2a2a] border border-[#C4922A] text-[#C4922A] font-semibold px-4 py-2.5 rounded-lg text-sm transition-colors disabled:opacity-50"
+                  >
+                    {checkoutLoading === plan.id ? "Redirecting..." : `Switch to ${annual ? "Annual" : "Monthly"}`}
+                  </button>
                 ) : isCustom ? (
                   <a
                     href="mailto:sales@shadowsight.io"

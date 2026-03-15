@@ -66,6 +66,7 @@ export default function TopBar({ onMenuClick }: TopBarProps) {
       <div className="relative flex-1 max-w-md">
         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
         <Input
+          id="topbar-search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search cases, people, evidence..."
