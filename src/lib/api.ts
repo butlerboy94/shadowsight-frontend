@@ -99,6 +99,15 @@ export const generatePdf = (id: number) => api.post(`/api/reports/${id}/generate
 export const generateAiContent = (id: number) => api.post(`/api/reports/${id}/generate_ai_content/`);
 export const callAura = (data: object) => api.post("/api/aura/", data);
 
+// Notifications
+export const getNotifications = () => api.get("/api/dashboard/notifications/");
+export const getUnreadCount = () => api.get("/api/dashboard/notifications/unread_count/");
+export const markNotificationRead = (id: number) => api.post(`/api/dashboard/notifications/${id}/mark_read/`);
+export const markAllNotificationsRead = () => api.post("/api/dashboard/notifications/mark_all_read/");
+
+// Watchlist scan
+export const scanWatchlistItem = (id: number) => api.post(`/api/dashboard/watchlist/${id}/scan/`);
+
 // ── Search ────────────────────────────────────────────────────────────────────
 export const globalSearch = (q: string) => api.get("/api/search/", { params: { q } });
 

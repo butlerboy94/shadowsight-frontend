@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getWatchlist, createWatchlistItem, deleteWatchlistItem, updateWatchlistItem, getCases } from "@/lib/api";
+import { getWatchlist, createWatchlistItem, deleteWatchlistItem, updateWatchlistItem, getCases, scanWatchlistItem } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Eye, Plus, X, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
+import { Eye, Plus, X, Trash2, ToggleLeft, ToggleRight, ScanSearch } from "lucide-react";
 import { toast } from "sonner";
 
 interface WatchlistItem {
@@ -20,6 +20,7 @@ interface WatchlistItem {
   is_active: boolean;
   case: number | null;
   case_reference: string | null;
+  last_scanned: string | null;
   created_at: string;
 }
 interface Case { id: number; title: string; reference_id: string; }
@@ -41,6 +42,7 @@ export default function WatchlistPage() {
   const [showForm, setShowForm] = useState(false);
   const [deleting, setDeleting] = useState<number | null>(null);
   const [toggling, setToggling] = useState<number | null>(null);
+  const [scanning, setScanning] = useState<number | null>(null);
   const [form, setForm] = useState({
     label: "", target_type: "person", target_value: "", priority: "medium", notes: "", case: "",
   });
@@ -57,7 +59,7 @@ export default function WatchlistPage() {
     getCases().then((res) => setCases(res.data.results ?? res.data));
   }, []);
 
-  async function handleCreate(e: React.FormEvent) {
+  async function handleCreate(e: { preventDefault(): void }) {
     e.preventDefault();
     setSaving(true);
     try {
@@ -87,6 +89,22 @@ export default function WatchlistPage() {
       toast.error("Failed to remove item");
     } finally {
       setDeleting(null);
+    }
+  }
+
+  async function handleScan(item: WatchlistItem) {
+    setScanning(item.id);
+    try {
+      const res = await scanWatchlistItem(item.id);
+      const status = res.data.status;
+      if (status === "completed") toast.success(`Scan complete: ${res.data.summary || "results stored"}`);
+      else if (status === "skipped") toast.info(`Scan skipped: ${res.data.reason}`);
+      else toast.error(`Scan error: ${res.data.reason}`);
+      setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, last_scanned: new Date().toISOString() } : i));
+    } catch {
+      toast.error("Scan failed");
+    } finally {
+      setScanning(null);
     }
   }
 
@@ -242,8 +260,10 @@ export default function WatchlistPage() {
                   item={item}
                   onDelete={handleDelete}
                   onToggle={handleToggle}
+                  onScan={handleScan}
                   deleting={deleting === item.id}
                   toggling={toggling === item.id}
+                  scanning={scanning === item.id}
                 />
               ))}
             </div>
@@ -266,8 +286,10 @@ export default function WatchlistPage() {
                   item={item}
                   onDelete={handleDelete}
                   onToggle={handleToggle}
+                  onScan={handleScan}
                   deleting={deleting === item.id}
                   toggling={toggling === item.id}
+                  scanning={scanning === item.id}
                 />
               ))}
             </div>
@@ -279,13 +301,15 @@ export default function WatchlistPage() {
 }
 
 function WatchlistRow({
-  item, onDelete, onToggle, deleting, toggling,
+  item, onDelete, onToggle, onScan, deleting, toggling, scanning,
 }: {
   item: WatchlistItem;
   onDelete: (id: number) => void;
   onToggle: (item: WatchlistItem) => void;
+  onScan: (item: WatchlistItem) => void;
   deleting: boolean;
   toggling: boolean;
+  scanning: boolean;
 }) {
   return (
     <div className={`py-4 flex items-start justify-between gap-4 ${!item.is_active ? "opacity-50" : ""}`}>
@@ -306,9 +330,21 @@ function WatchlistRow({
         </div>
         <p className="text-gray-400 text-sm mt-0.5 font-mono">{item.target_value}</p>
         {item.notes && <p className="text-gray-500 text-xs mt-0.5">{item.notes}</p>}
-        <p className="text-gray-600 text-xs mt-1">{new Date(item.created_at).toLocaleDateString()}</p>
+        <p className="text-gray-600 text-xs mt-1">
+          Added {new Date(item.created_at).toLocaleDateString()}
+          {item.last_scanned && ` · Last scanned ${new Date(item.last_scanned).toLocaleString()}`}
+        </p>
       </div>
       <div className="flex items-center gap-1 shrink-0">
+        <button
+          type="button"
+          onClick={() => onScan(item)}
+          disabled={scanning || !item.is_active}
+          title="Run OSINT scan now"
+          className="p-1.5 rounded text-gray-500 hover:text-blue-400 hover:bg-blue-400/10 transition-colors disabled:opacity-40"
+        >
+          <ScanSearch size={14} />
+        </button>
         <button
           type="button"
           onClick={() => onToggle(item)}
