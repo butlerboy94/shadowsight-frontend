@@ -5,6 +5,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { clearTokens } from "@/lib/auth";
 import { cn } from "@/lib/utils";
+import { useAura } from "@/context/AuraContext";
 import {
   LayoutDashboard,
   FolderOpen,
@@ -18,6 +19,7 @@ import {
   UserCog,
   Settings,
   CreditCard,
+  Sparkles,
 } from "lucide-react";
 
 const nav = [
@@ -44,6 +46,7 @@ interface SidebarProps {
 export default function Sidebar({ open, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { openAura } = useAura();
 
   function handleLogout() {
     clearTokens();
@@ -81,6 +84,18 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             </Link>
           );
         })}
+
+        <div className="pt-3 pb-1">
+          <p className="px-3 text-xs text-gray-600 uppercase tracking-wider font-medium">AI</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => { openAura(); onClose(); }}
+          className="flex items-center gap-3 px-3 py-2 w-full rounded-md text-sm transition-colors text-purple-400 hover:text-white hover:bg-purple-500/20"
+        >
+          <Sparkles size={16} />
+          Aura
+        </button>
 
         <div className="pt-3 pb-1">
           <p className="px-3 text-xs text-gray-600 uppercase tracking-wider font-medium">Account</p>

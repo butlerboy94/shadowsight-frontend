@@ -2,18 +2,19 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { getCase, getPeople, getEvidence, getOsintResults, uploadEvidence, updateCase } from "@/lib/api";
+import { getCase, getPeople, getEvidence, getOsintResults, uploadEvidence, updateCase, createPerson, updatePerson } from "@/lib/api";
+import { useAura } from "@/context/AuraContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Users, Shield, Search, Calendar, Upload, X, Pencil, Check, Clock } from "lucide-react";
+import { ArrowLeft, Users, Shield, Search, Calendar, Upload, X, Pencil, Check, Clock, Plus, Trash2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 interface Case {
-  id: number; title: string; description: string; status: string;
+  id: number; title: string; description: string; notes: string; status: string;
   reference_id: string; created_at: string;
 }
-interface Person { id: number; first_name: string; last_name: string; email: string; cases: number[]; }
+interface Person { id: number; first_name: string; last_name: string; email: string; phone: string; role: string; cases: number[]; }
 interface Evidence { id: number; original_filename: string; content_type: string; uploaded_at: string; sha256: string; }
 interface OsintResult { id: number; query_type: string; query_value: string; provider: string; summary: string; created_at: string; }
 
@@ -35,6 +36,7 @@ function guessContentType(file: File): string {
 export default function CaseDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { openAura } = useAura();
   const [caseData, setCaseData] = useState<Case | null>(null);
   const [people, setPeople] = useState<Person[]>([]);
   const [evidence, setEvidence] = useState<Evidence[]>([]);
@@ -45,6 +47,80 @@ export default function CaseDetailPage() {
   const [editingStatus, setEditingStatus] = useState(false);
   const [newStatus, setNewStatus] = useState("");
   const [savingStatus, setSavingStatus] = useState(false);
+
+  // Case notes
+  const [editingNotes, setEditingNotes] = useState(false);
+  const [notesValue, setNotesValue] = useState("");
+  const [savingNotes, setSavingNotes] = useState(false);
+
+  // Subject CRUD
+  const ROLES = ["subject", "suspect", "witness", "victim", "associate"];
+  const roleColor: Record<string, string> = {
+    suspect: "bg-red-500/20 text-red-400 border-red-500/30",
+    witness: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+    victim: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+    associate: "bg-gray-500/20 text-gray-400 border-gray-500/30",
+    subject: "bg-purple-500/20 text-purple-400 border-purple-500/30",
+  };
+  const [showAddSubject, setShowAddSubject] = useState(false);
+  const [subjectForm, setSubjectForm] = useState({ first_name: "", last_name: "", email: "", phone: "", role: "subject" });
+  const [savingSubject, setSavingSubject] = useState(false);
+  const [editSubjectId, setEditSubjectId] = useState<number | null>(null);
+  const [editSubjectForm, setEditSubjectForm] = useState({ first_name: "", last_name: "", email: "", phone: "", role: "subject" });
+  const [savingEditSubject, setSavingEditSubject] = useState(false);
+  const [deletingSubject, setDeletingSubject] = useState<number | null>(null);
+
+  async function handleAddSubject(e: { preventDefault(): void }) {
+    e.preventDefault();
+    if (!id) return;
+    setSavingSubject(true);
+    try {
+      await createPerson({ ...subjectForm, cases: [Number(id)] });
+      setSubjectForm({ first_name: "", last_name: "", email: "", phone: "", role: "subject" });
+      setShowAddSubject(false);
+      const res = await getPeople();
+      const all = res.data.results ?? res.data;
+      setPeople(all.filter((p: Person) => p.cases?.includes(Number(id))));
+      toast.success("Subject added");
+    } catch {
+      toast.error("Failed to add subject");
+    } finally {
+      setSavingSubject(false);
+    }
+  }
+
+  function startEditSubject(p: Person) {
+    setEditSubjectId(p.id);
+    setEditSubjectForm({ first_name: p.first_name, last_name: p.last_name, email: p.email ?? "", phone: p.phone ?? "", role: p.role ?? "subject" });
+  }
+
+  async function handleEditSubjectSave(p: Person) {
+    setSavingEditSubject(true);
+    try {
+      await updatePerson(p.id, editSubjectForm);
+      setPeople((prev) => prev.map((x) => x.id === p.id ? { ...x, ...editSubjectForm } : x));
+      setEditSubjectId(null);
+      toast.success("Subject updated");
+    } catch {
+      toast.error("Failed to update subject");
+    } finally {
+      setSavingEditSubject(false);
+    }
+  }
+
+  async function handleUnlinkSubject(p: Person) {
+    if (!confirm(`Remove ${p.first_name} ${p.last_name} from this case?`)) return;
+    setDeletingSubject(p.id);
+    try {
+      await updatePerson(p.id, { cases: p.cases.filter((c) => c !== Number(id)) });
+      setPeople((prev) => prev.filter((x) => x.id !== p.id));
+      toast.success("Subject removed from case");
+    } catch {
+      toast.error("Failed to remove subject");
+    } finally {
+      setDeletingSubject(null);
+    }
+  }
 
   // Evidence upload
   const [showUpload, setShowUpload] = useState(false);
@@ -63,6 +139,7 @@ export default function CaseDetailPage() {
     ]).then(([caseRes, peopleRes, evidenceRes, osintRes]) => {
       setCaseData(caseRes.data);
       setNewStatus(caseRes.data.status);
+      setNotesValue(caseRes.data.notes ?? "");
       const allPeople = peopleRes.data.results ?? peopleRes.data;
       setPeople(allPeople.filter((p: Person) => p.cases?.includes(Number(id))));
       setEvidence(evidenceRes.data.results ?? evidenceRes.data);
@@ -87,7 +164,22 @@ export default function CaseDetailPage() {
     }
   }
 
-  async function handleUpload(e: React.FormEvent) {
+  async function handleNotesSave() {
+    if (!caseData) return;
+    setSavingNotes(true);
+    try {
+      await updateCase(caseData.id, { notes: notesValue });
+      setCaseData((prev) => prev ? { ...prev, notes: notesValue } : prev);
+      setEditingNotes(false);
+      toast.success("Notes saved");
+    } catch {
+      toast.error("Failed to save notes");
+    } finally {
+      setSavingNotes(false);
+    }
+  }
+
+  async function handleUpload(e: { preventDefault(): void }) {
     e.preventDefault();
     if (!uploadFile || !id) return;
     setUploading(true);
@@ -192,6 +284,25 @@ export default function CaseDetailPage() {
             )}
           </div>
         </div>
+
+        {/* Aura quick actions */}
+        <div className="flex flex-wrap gap-2 mt-4">
+          <button type="button"
+            onClick={() => openAura({ task: "case_summary", caseId: caseData.id })}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs bg-purple-500/10 border border-purple-500/30 text-purple-300 hover:bg-purple-500/20 transition-colors">
+            <Sparkles size={11} /> Case Summary
+          </button>
+          <button type="button"
+            onClick={() => openAura({ task: "osint_interpretation", caseId: caseData.id })}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs bg-purple-500/10 border border-purple-500/30 text-purple-300 hover:bg-purple-500/20 transition-colors">
+            <Sparkles size={11} /> OSINT Analysis
+          </button>
+          <button type="button"
+            onClick={() => openAura({ task: "case_qa", caseId: caseData.id })}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs bg-purple-500/10 border border-purple-500/30 text-purple-300 hover:bg-purple-500/20 transition-colors">
+            <Sparkles size={11} /> Ask Aura
+          </button>
+        </div>
       </div>
 
       {/* Stats row */}
@@ -218,29 +329,108 @@ export default function CaseDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Subjects */}
         <Card className="bg-gray-900 border-gray-800">
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-2 flex flex-row items-center justify-between">
             <CardTitle className="text-white text-base flex items-center gap-2">
               <Users size={15} /> Subjects
             </CardTitle>
+            <button type="button" onClick={() => setShowAddSubject(!showAddSubject)}
+              className="flex items-center gap-1 text-xs text-[#C4922A] hover:text-[#A67822]">
+              <Plus size={12} /> Add
+            </button>
           </CardHeader>
           <CardContent>
-            {people.length === 0 ? (
+            {showAddSubject && (
+              <form onSubmit={handleAddSubject} className="mb-4 space-y-3 p-3 bg-gray-800/50 rounded-md border border-gray-700">
+                <div className="grid grid-cols-2 gap-2">
+                  <input required value={subjectForm.first_name} onChange={(e) => setSubjectForm({ ...subjectForm, first_name: e.target.value })}
+                    placeholder="First name" className="rounded bg-gray-800 border border-gray-700 text-white text-xs px-2 py-1.5 placeholder:text-gray-500" />
+                  <input required value={subjectForm.last_name} onChange={(e) => setSubjectForm({ ...subjectForm, last_name: e.target.value })}
+                    placeholder="Last name" className="rounded bg-gray-800 border border-gray-700 text-white text-xs px-2 py-1.5 placeholder:text-gray-500" />
+                  <input value={subjectForm.email} onChange={(e) => setSubjectForm({ ...subjectForm, email: e.target.value })}
+                    placeholder="Email" type="email" className="rounded bg-gray-800 border border-gray-700 text-white text-xs px-2 py-1.5 placeholder:text-gray-500" />
+                  <input value={subjectForm.phone} onChange={(e) => setSubjectForm({ ...subjectForm, phone: e.target.value })}
+                    placeholder="Phone" className="rounded bg-gray-800 border border-gray-700 text-white text-xs px-2 py-1.5 placeholder:text-gray-500" />
+                </div>
+                <select value={subjectForm.role} onChange={(e) => setSubjectForm({ ...subjectForm, role: e.target.value })}
+                  title="Role" className="w-full rounded bg-gray-800 border border-gray-700 text-white text-xs px-2 py-1.5">
+                  {ROLES.map((r) => <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
+                </select>
+                <div className="flex gap-2">
+                  <Button type="submit" disabled={savingSubject} className="h-7 px-3 text-xs bg-[#C4922A] hover:bg-[#A67822] text-white">
+                    {savingSubject ? "Adding..." : "Add Subject"}
+                  </Button>
+                  <Button type="button" variant="outline" onClick={() => setShowAddSubject(false)}
+                    className="h-7 px-3 text-xs border-gray-700 text-gray-300 hover:bg-gray-800">Cancel</Button>
+                </div>
+              </form>
+            )}
+            {people.length === 0 && !showAddSubject ? (
               <div className="text-center py-8">
                 <Users size={24} className="mx-auto text-gray-700 mb-2" />
                 <p className="text-gray-500 text-sm">No subjects linked to this case</p>
-                <button type="button" onClick={() => router.push("/dashboard/people")}
-                  className="mt-2 text-[#C4922A] text-xs hover:underline">
-                  + Add subject
-                </button>
+                <button type="button" onClick={() => setShowAddSubject(true)}
+                  className="mt-2 text-[#C4922A] text-xs hover:underline">+ Add subject</button>
               </div>
             ) : (
               <div className="divide-y divide-gray-800">
                 {people.map((p) => (
-                  <div key={p.id} className="py-3 flex items-center justify-between">
-                    <div>
-                      <p className="text-white text-sm font-medium">{p.first_name} {p.last_name}</p>
-                      <p className="text-gray-500 text-xs">{p.email}</p>
-                    </div>
+                  <div key={p.id}>
+                    {editSubjectId === p.id ? (
+                      <div className="py-3 space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <input value={editSubjectForm.first_name} onChange={(e) => setEditSubjectForm({ ...editSubjectForm, first_name: e.target.value })}
+                            placeholder="First name" className="rounded bg-gray-800 border border-gray-700 text-white text-xs px-2 py-1.5" />
+                          <input value={editSubjectForm.last_name} onChange={(e) => setEditSubjectForm({ ...editSubjectForm, last_name: e.target.value })}
+                            placeholder="Last name" className="rounded bg-gray-800 border border-gray-700 text-white text-xs px-2 py-1.5" />
+                          <input value={editSubjectForm.email} onChange={(e) => setEditSubjectForm({ ...editSubjectForm, email: e.target.value })}
+                            placeholder="Email" className="rounded bg-gray-800 border border-gray-700 text-white text-xs px-2 py-1.5" />
+                          <input value={editSubjectForm.phone} onChange={(e) => setEditSubjectForm({ ...editSubjectForm, phone: e.target.value })}
+                            placeholder="Phone" className="rounded bg-gray-800 border border-gray-700 text-white text-xs px-2 py-1.5" />
+                        </div>
+                        <select value={editSubjectForm.role} onChange={(e) => setEditSubjectForm({ ...editSubjectForm, role: e.target.value })}
+                          title="Role" className="w-full rounded bg-gray-800 border border-gray-700 text-white text-xs px-2 py-1.5">
+                          {ROLES.map((r) => <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
+                        </select>
+                        <div className="flex gap-2">
+                          <Button type="button" onClick={() => handleEditSubjectSave(p)} disabled={savingEditSubject}
+                            className="h-7 px-3 text-xs bg-[#C4922A] hover:bg-[#A67822] text-white">
+                            <Check size={12} className="mr-1" />{savingEditSubject ? "Saving..." : "Save"}
+                          </Button>
+                          <Button type="button" variant="outline" onClick={() => setEditSubjectId(null)}
+                            className="h-7 px-3 text-xs border-gray-700 text-gray-300 hover:bg-gray-800">Cancel</Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="py-3 flex items-center justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-white text-sm font-medium">{p.first_name} {p.last_name}</p>
+                            <Badge className={`text-xs border ${roleColor[p.role] ?? roleColor.subject}`}>
+                              {p.role ?? "subject"}
+                            </Badge>
+                          </div>
+                          <p className="text-gray-400 text-xs mt-0.5">
+                            {p.email || "—"}{p.phone ? ` · ${p.phone}` : ""}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button type="button" onClick={() => openAura({ task: "subject_profile", personId: p.id })}
+                            title="Aura subject profile"
+                            className="p-1 rounded text-gray-600 hover:text-purple-400 hover:bg-purple-400/10 transition-colors">
+                            <Sparkles size={13} />
+                          </button>
+                          <button type="button" onClick={() => startEditSubject(p)} title="Edit subject"
+                            className="p-1 rounded text-gray-600 hover:text-[#C4922A] hover:bg-[#C4922A]/10 transition-colors">
+                            <Pencil size={13} />
+                          </button>
+                          <button type="button" onClick={() => handleUnlinkSubject(p)}
+                            disabled={deletingSubject === p.id} title="Remove from case"
+                            className="p-1 rounded text-gray-600 hover:text-red-400 hover:bg-red-400/10 transition-colors">
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -343,6 +533,51 @@ export default function CaseDetailPage() {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Case Notes */}
+      <Card className="bg-gray-900 border-gray-800">
+        <CardHeader className="pb-2 flex flex-row items-center justify-between">
+          <CardTitle className="text-white text-base flex items-center gap-2">
+            <Pencil size={15} /> Investigator Notes
+          </CardTitle>
+          {!editingNotes && (
+            <button type="button" onClick={() => setEditingNotes(true)}
+              className="text-xs text-[#C4922A] hover:text-[#A67822]">
+              {caseData.notes ? "Edit" : "+ Add Notes"}
+            </button>
+          )}
+        </CardHeader>
+        <CardContent>
+          {editingNotes ? (
+            <div className="space-y-3">
+              <textarea
+                value={notesValue}
+                onChange={(e) => setNotesValue(e.target.value)}
+                rows={6}
+                placeholder="Add investigator notes for this case..."
+                className="w-full rounded-md bg-gray-800 border border-gray-700 text-white text-sm px-3 py-2 placeholder:text-gray-600 resize-none"
+              />
+              <div className="flex gap-2">
+                <Button type="button" onClick={handleNotesSave} disabled={savingNotes}
+                  className="h-7 px-3 text-xs bg-[#C4922A] hover:bg-[#A67822] text-white">
+                  <Check size={12} className="mr-1" />{savingNotes ? "Saving..." : "Save Notes"}
+                </Button>
+                <Button type="button" variant="outline" onClick={() => { setEditingNotes(false); setNotesValue(caseData.notes ?? ""); }}
+                  className="h-7 px-3 text-xs border-gray-700 text-gray-300 hover:bg-gray-800">Cancel</Button>
+              </div>
+            </div>
+          ) : caseData.notes ? (
+            <p className="text-gray-300 text-sm whitespace-pre-wrap">{caseData.notes}</p>
+          ) : (
+            <div className="text-center py-8">
+              <Pencil size={24} className="mx-auto text-gray-700 mb-2" />
+              <p className="text-gray-500 text-sm">No notes yet</p>
+              <button type="button" onClick={() => setEditingNotes(true)}
+                className="mt-2 text-[#C4922A] text-xs hover:underline">+ Add notes</button>
             </div>
           )}
         </CardContent>

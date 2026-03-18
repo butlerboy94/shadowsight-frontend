@@ -96,6 +96,8 @@ export const createReport = (data: object) => api.post("/api/reports/", data);
 export const updateReport = (id: number, data: object) => api.patch(`/api/reports/${id}/`, data);
 export const deleteReport = (id: number) => api.delete(`/api/reports/${id}/`);
 export const generatePdf = (id: number) => api.post(`/api/reports/${id}/generate_pdf/`);
+export const generateAiContent = (id: number) => api.post(`/api/reports/${id}/generate_ai_content/`);
+export const callAura = (data: object) => api.post("/api/aura/", data);
 
 // ── Search ────────────────────────────────────────────────────────────────────
 export const globalSearch = (q: string) => api.get("/api/search/", { params: { q } });

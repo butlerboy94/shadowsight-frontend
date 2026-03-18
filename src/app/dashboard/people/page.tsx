@@ -48,11 +48,12 @@ export default function PeoplePage() {
     getCases().then((res) => setCases(res.data.results ?? res.data));
   }, []);
 
-  async function handleCreate(e: React.FormEvent) {
+  async function handleCreate(e: { preventDefault(): void }) {
     e.preventDefault();
     setSaving(true);
     try {
-      await createPerson({ ...form, case: form.case ? Number(form.case) : undefined });
+      const { case: caseId, ...rest } = form;
+      await createPerson({ ...rest, cases: caseId ? [Number(caseId)] : [] });
       setForm({ first_name: "", last_name: "", email: "", phone: "", role: "subject", case: "" });
       setShowForm(false);
       fetchPeople();

@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getReports, createReport, generatePdf, getCases, updateReport, deleteReport } from "@/lib/api";
+import { getReports, createReport, generatePdf, generateAiContent, getCases, updateReport, deleteReport } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Plus, X, Download, Trash2, Pencil, Check, Lock, Unlock } from "lucide-react";
+import { FileText, Plus, X, Download, Trash2, Pencil, Check, Lock, Unlock, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 interface Report {
@@ -42,6 +42,7 @@ export default function ReportsPage() {
   const [editNotes, setEditNotes] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
   const [togglingStatus, setTogglingStatus] = useState<number | null>(null);
+  const [aiDrafting, setAiDrafting] = useState<number | null>(null);
 
   async function handleToggleStatus(r: Report) {
     const next = r.status === "draft" ? "finalized" : "draft";
@@ -68,7 +69,7 @@ export default function ReportsPage() {
     getCases().then((res) => setCases(res.data.results ?? res.data));
   }, []);
 
-  async function handleCreate(e: React.FormEvent) {
+  async function handleCreate(e: { preventDefault(): void }) {
     e.preventDefault();
     setSaving(true);
     try {
@@ -117,6 +118,22 @@ export default function ReportsPage() {
       toast.error("Failed to delete report");
     } finally {
       setDeleting(null);
+    }
+  }
+
+  async function handleAiDraft(r: Report) {
+    setAiDrafting(r.id);
+    try {
+      const res = await generateAiContent(r.id);
+      setReports((prev) => prev.map((x) => x.id === r.id ? { ...x, content: res.data.content } : x));
+      toast.success("Aura has drafted your analyst notes — review and edit below");
+      setEditNotesId(r.id);
+      setEditNotes(res.data.content ?? "");
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || "AI draft failed";
+      toast.error(msg);
+    } finally {
+      setAiDrafting(null);
     }
   }
 
@@ -262,6 +279,15 @@ export default function ReportsPage() {
                         className="border-gray-700 text-gray-400 hover:text-white hover:bg-gray-800 h-7 px-2">
                         {generating === r.id ? "..." : r.pdf_url ? "Regenerate" : "Generate PDF"}
                       </Button>
+                      <button
+                        type="button"
+                        onClick={() => handleAiDraft(r)}
+                        disabled={aiDrafting === r.id}
+                        title="Draft with Aura AI"
+                        className="p-1 rounded text-gray-600 hover:text-purple-400 hover:bg-purple-400/10 transition-colors disabled:opacity-50"
+                      >
+                        <Sparkles size={14} />
+                      </button>
                       <button
                         type="button"
                         onClick={() => editNotesId === r.id ? setEditNotesId(null) : startEditNotes(r)}
