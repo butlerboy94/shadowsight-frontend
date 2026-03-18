@@ -16,6 +16,12 @@ interface Person {
   last_name: string;
   email: string | null;
   phone: string;
+  address_line1: string;
+  address_line2: string;
+  city: string;
+  state: string;
+  zip_code: string;
+  country: string;
   notes: string;
   cases: number[];
 }
@@ -28,13 +34,13 @@ export default function PeoplePage() {
   const [cases, setCases] = useState<Case[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ first_name: "", last_name: "", email: "", phone: "", role: "subject", case: "" });
+  const [form, setForm] = useState({ first_name: "", last_name: "", email: "", phone: "", role: "subject", case: "", address_line1: "", address_line2: "", city: "", state: "", zip_code: "", country: "" });
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<number | null>(null);
 
   // Edit state
   const [editId, setEditId] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState({ first_name: "", last_name: "", email: "", phone: "", notes: "" });
+  const [editForm, setEditForm] = useState({ first_name: "", last_name: "", email: "", phone: "", address_line1: "", address_line2: "", city: "", state: "", zip_code: "", country: "", notes: "" });
   const [editSaving, setEditSaving] = useState(false);
 
   function fetchPeople() {
@@ -54,7 +60,7 @@ export default function PeoplePage() {
     try {
       const { case: caseId, ...rest } = form;
       await createPerson({ ...rest, cases: caseId ? [Number(caseId)] : [] });
-      setForm({ first_name: "", last_name: "", email: "", phone: "", role: "subject", case: "" });
+      setForm({ first_name: "", last_name: "", email: "", phone: "", role: "subject", case: "", address_line1: "", address_line2: "", city: "", state: "", zip_code: "", country: "" });
       setShowForm(false);
       fetchPeople();
       toast.success("Person added successfully");
@@ -86,6 +92,12 @@ export default function PeoplePage() {
       last_name: p.last_name,
       email: p.email ?? "",
       phone: p.phone ?? "",
+      address_line1: p.address_line1 ?? "",
+      address_line2: p.address_line2 ?? "",
+      city: p.city ?? "",
+      state: p.state ?? "",
+      zip_code: p.zip_code ?? "",
+      country: p.country ?? "",
       notes: p.notes ?? "",
     });
   }
@@ -123,42 +135,75 @@ export default function PeoplePage() {
             <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-white"><X size={16} /></button>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleCreate} className="grid grid-cols-2 gap-4">
-              {(["first_name", "last_name", "email", "phone"] as const).map((field) => (
-                <div key={field} className="space-y-1">
-                  <Label className="text-gray-300 capitalize">{field.replace("_", " ")}</Label>
-                  <Input
-                    value={form[field]}
-                    onChange={(e) => setForm({ ...form, [field]: e.target.value })}
-                    className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
-                  />
-                </div>
-              ))}
-              <div className="space-y-1">
-                <Label className="text-gray-300">Role</Label>
-                <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}
-                  className="w-full rounded-md bg-gray-800 border border-gray-700 text-white px-3 py-2 text-sm">
-                  {ROLES.map((r) => (
-                    <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
-                  ))}
-                </select>
+            <form onSubmit={handleCreate} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                {(["first_name", "last_name", "email", "phone"] as const).map((field) => (
+                  <div key={field} className="space-y-1">
+                    <Label className="text-gray-300 capitalize">{field.replace("_", " ")}</Label>
+                    <Input
+                      value={form[field]}
+                      onChange={(e) => setForm({ ...form, [field]: e.target.value })}
+                      className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
+                    />
+                  </div>
+                ))}
               </div>
-              <div className="space-y-1">
-                <Label className="text-gray-300">Link to Case</Label>
-                <select value={form.case} onChange={(e) => setForm({ ...form, case: e.target.value })}
-                  className="w-full rounded-md bg-gray-800 border border-gray-700 text-white px-3 py-2 text-sm">
-                  <option value="">— None —</option>
-                  {cases.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
-                </select>
-              </div>
-              <div className="col-span-2">
-                <div className="flex gap-2">
-                  <Button type="submit" className="bg-[#C4922A] hover:bg-[#A67822] text-white" disabled={saving}>
-                    {saving ? "Saving..." : "Add Person"}
-                  </Button>
-                  <Button type="button" variant="outline" onClick={() => setShowForm(false)}
-                    className="border-gray-700 text-gray-300 hover:bg-gray-800">Cancel</Button>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1 col-span-2">
+                  <Label className="text-gray-300">Address</Label>
+                  <Input value={form.address_line1} onChange={(e) => setForm({ ...form, address_line1: e.target.value })}
+                    placeholder="Street address" className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500" />
                 </div>
+                <div className="space-y-1 col-span-2">
+                  <Input value={form.address_line2} onChange={(e) => setForm({ ...form, address_line2: e.target.value })}
+                    placeholder="Apt, suite, unit (optional)" className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-gray-300">City</Label>
+                  <Input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })}
+                    className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-gray-300">State</Label>
+                  <Input value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })}
+                    className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-gray-300">ZIP Code</Label>
+                  <Input value={form.zip_code} onChange={(e) => setForm({ ...form, zip_code: e.target.value })}
+                    className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-gray-300">Country</Label>
+                  <Input value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })}
+                    placeholder="Optional" className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-gray-300">Role</Label>
+                  <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} title="Role"
+                    className="w-full rounded-md bg-gray-800 border border-gray-700 text-white px-3 py-2 text-sm">
+                    {ROLES.map((r) => (
+                      <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-gray-300">Link to Case</Label>
+                  <select value={form.case} onChange={(e) => setForm({ ...form, case: e.target.value })} title="Link to case"
+                    className="w-full rounded-md bg-gray-800 border border-gray-700 text-white px-3 py-2 text-sm">
+                    <option value="">— None —</option>
+                    {cases.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button type="submit" className="bg-[#C4922A] hover:bg-[#A67822] text-white" disabled={saving}>
+                  {saving ? "Saving..." : "Add Person"}
+                </Button>
+                <Button type="button" variant="outline" onClick={() => setShowForm(false)}
+                  className="border-gray-700 text-gray-300 hover:bg-gray-800">Cancel</Button>
               </div>
             </form>
           </CardContent>
@@ -197,6 +242,35 @@ export default function PeoplePage() {
                             />
                           </div>
                         ))}
+                        <div className="space-y-1 col-span-2">
+                          <Label className="text-gray-400 text-xs">Street Address</Label>
+                          <Input value={editForm.address_line1} onChange={(e) => setEditForm({ ...editForm, address_line1: e.target.value })}
+                            placeholder="Street address" className="bg-gray-800 border-gray-700 text-white text-sm h-8 placeholder:text-gray-600" />
+                        </div>
+                        <div className="space-y-1 col-span-2">
+                          <Input value={editForm.address_line2} onChange={(e) => setEditForm({ ...editForm, address_line2: e.target.value })}
+                            placeholder="Apt, suite, unit (optional)" className="bg-gray-800 border-gray-700 text-white text-sm h-8 placeholder:text-gray-600" />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-gray-400 text-xs">City</Label>
+                          <Input value={editForm.city} onChange={(e) => setEditForm({ ...editForm, city: e.target.value })}
+                            className="bg-gray-800 border-gray-700 text-white text-sm h-8" />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-gray-400 text-xs">State</Label>
+                          <Input value={editForm.state} onChange={(e) => setEditForm({ ...editForm, state: e.target.value })}
+                            className="bg-gray-800 border-gray-700 text-white text-sm h-8" />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-gray-400 text-xs">ZIP Code</Label>
+                          <Input value={editForm.zip_code} onChange={(e) => setEditForm({ ...editForm, zip_code: e.target.value })}
+                            className="bg-gray-800 border-gray-700 text-white text-sm h-8" />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-gray-400 text-xs">Country</Label>
+                          <Input value={editForm.country} onChange={(e) => setEditForm({ ...editForm, country: e.target.value })}
+                            placeholder="Optional" className="bg-gray-800 border-gray-700 text-white text-sm h-8 placeholder:text-gray-600" />
+                        </div>
                       </div>
                       <div className="space-y-1">
                         <Label className="text-gray-400 text-xs">Notes</Label>
@@ -225,6 +299,11 @@ export default function PeoplePage() {
                         <p className="text-gray-400 text-xs mt-0.5">
                           {p.email}{p.phone ? ` · ${p.phone}` : ""}
                         </p>
+                        {(p.city || p.state || p.address_line1) && (
+                          <p className="text-gray-500 text-xs mt-0.5 truncate">
+                            {[p.address_line1, p.city, p.state, p.zip_code].filter(Boolean).join(", ")}
+                          </p>
+                        )}
                         {p.notes && <p className="text-gray-500 text-xs mt-0.5 truncate">{p.notes}</p>}
                       </div>
                       <div className="flex items-center gap-2 ml-4 shrink-0">

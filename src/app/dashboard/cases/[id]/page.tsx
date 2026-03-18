@@ -12,9 +12,9 @@ import { toast } from "sonner";
 
 interface Case {
   id: number; title: string; description: string; notes: string; status: string;
-  reference_id: string; created_at: string;
+  reference_id: string; created_at: string; location: string;
 }
-interface Person { id: number; first_name: string; last_name: string; email: string; phone: string; role: string; cases: number[]; }
+interface Person { id: number; first_name: string; last_name: string; email: string; phone: string; role: string; cases: number[]; address_line1: string; address_line2: string; city: string; state: string; zip_code: string; country: string; }
 interface Evidence { id: number; original_filename: string; content_type: string; uploaded_at: string; sha256: string; }
 interface OsintResult { id: number; query_type: string; query_value: string; provider: string; summary: string; created_at: string; }
 
@@ -53,6 +53,26 @@ export default function CaseDetailPage() {
   const [notesValue, setNotesValue] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
 
+  // Case location
+  const [editingLocation, setEditingLocation] = useState(false);
+  const [locationValue, setLocationValue] = useState("");
+  const [savingLocation, setSavingLocation] = useState(false);
+
+  async function handleLocationSave() {
+    if (!caseData) return;
+    setSavingLocation(true);
+    try {
+      await updateCase(caseData.id, { location: locationValue });
+      setCaseData((prev) => prev ? { ...prev, location: locationValue } : prev);
+      setEditingLocation(false);
+      toast.success("Location saved");
+    } catch {
+      toast.error("Failed to save location");
+    } finally {
+      setSavingLocation(false);
+    }
+  }
+
   // Subject CRUD
   const ROLES = ["subject", "suspect", "witness", "victim", "associate"];
   const roleColor: Record<string, string> = {
@@ -63,10 +83,10 @@ export default function CaseDetailPage() {
     subject: "bg-purple-500/20 text-purple-400 border-purple-500/30",
   };
   const [showAddSubject, setShowAddSubject] = useState(false);
-  const [subjectForm, setSubjectForm] = useState({ first_name: "", last_name: "", email: "", phone: "", role: "subject" });
+  const [subjectForm, setSubjectForm] = useState({ first_name: "", last_name: "", email: "", phone: "", role: "subject", address_line1: "", address_line2: "", city: "", state: "", zip_code: "", country: "" });
   const [savingSubject, setSavingSubject] = useState(false);
   const [editSubjectId, setEditSubjectId] = useState<number | null>(null);
-  const [editSubjectForm, setEditSubjectForm] = useState({ first_name: "", last_name: "", email: "", phone: "", role: "subject" });
+  const [editSubjectForm, setEditSubjectForm] = useState({ first_name: "", last_name: "", email: "", phone: "", role: "subject", address_line1: "", address_line2: "", city: "", state: "", zip_code: "", country: "" });
   const [savingEditSubject, setSavingEditSubject] = useState(false);
   const [deletingSubject, setDeletingSubject] = useState<number | null>(null);
 
@@ -76,7 +96,7 @@ export default function CaseDetailPage() {
     setSavingSubject(true);
     try {
       await createPerson({ ...subjectForm, cases: [Number(id)] });
-      setSubjectForm({ first_name: "", last_name: "", email: "", phone: "", role: "subject" });
+      setSubjectForm({ first_name: "", last_name: "", email: "", phone: "", role: "subject", address_line1: "", address_line2: "", city: "", state: "", zip_code: "", country: "" });
       setShowAddSubject(false);
       const res = await getPeople();
       const all = res.data.results ?? res.data;
@@ -91,7 +111,7 @@ export default function CaseDetailPage() {
 
   function startEditSubject(p: Person) {
     setEditSubjectId(p.id);
-    setEditSubjectForm({ first_name: p.first_name, last_name: p.last_name, email: p.email ?? "", phone: p.phone ?? "", role: p.role ?? "subject" });
+    setEditSubjectForm({ first_name: p.first_name, last_name: p.last_name, email: p.email ?? "", phone: p.phone ?? "", role: p.role ?? "subject", address_line1: p.address_line1 ?? "", address_line2: p.address_line2 ?? "", city: p.city ?? "", state: p.state ?? "", zip_code: p.zip_code ?? "", country: p.country ?? "" });
   }
 
   async function handleEditSubjectSave(p: Person) {
@@ -140,6 +160,7 @@ export default function CaseDetailPage() {
       setCaseData(caseRes.data);
       setNewStatus(caseRes.data.status);
       setNotesValue(caseRes.data.notes ?? "");
+      setLocationValue(caseRes.data.location ?? "");
       const allPeople = peopleRes.data.results ?? peopleRes.data;
       setPeople(allPeople.filter((p: Person) => p.cases?.includes(Number(id))));
       setEvidence(evidenceRes.data.results ?? evidenceRes.data);
@@ -242,11 +263,31 @@ export default function CaseDetailPage() {
           <div>
             <h1 className="text-2xl font-semibold text-white">{caseData.title}</h1>
             <p className="text-gray-400 text-sm mt-1">{caseData.description}</p>
-            <div className="flex items-center gap-3 mt-2">
+            <div className="flex items-center gap-3 mt-2 flex-wrap">
               <span className="text-gray-500 text-xs flex items-center gap-1">
                 <Calendar size={12} /> {new Date(caseData.created_at).toLocaleDateString()}
               </span>
               <span className="text-gray-600 text-xs font-mono">{caseData.reference_id}</span>
+              {editingLocation ? (
+                <div className="flex items-center gap-1">
+                  <input
+                    value={locationValue}
+                    onChange={(e) => setLocationValue(e.target.value)}
+                    placeholder="Incident location"
+                    className="rounded bg-gray-800 border border-gray-700 text-white text-xs px-2 py-1 placeholder:text-gray-600 w-56"
+                  />
+                  <button type="button" onClick={handleLocationSave} disabled={savingLocation} title="Save location"
+                    className="p-1 rounded text-green-400 hover:bg-green-400/10"><Check size={12} /></button>
+                  <button type="button" onClick={() => { setEditingLocation(false); setLocationValue(caseData.location ?? ""); }} title="Cancel"
+                    className="p-1 rounded text-gray-500 hover:text-white"><X size={12} /></button>
+                </div>
+              ) : (
+                <button type="button" onClick={() => setEditingLocation(true)} title="Edit incident location"
+                  className="flex items-center gap-1 text-gray-500 text-xs hover:text-gray-300 transition-colors group">
+                  <span>{caseData.location || "Add location"}</span>
+                  <Pencil size={10} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                </button>
+              )}
             </div>
           </div>
 
@@ -340,7 +381,7 @@ export default function CaseDetailPage() {
           </CardHeader>
           <CardContent>
             {showAddSubject && (
-              <form onSubmit={handleAddSubject} className="mb-4 space-y-3 p-3 bg-gray-800/50 rounded-md border border-gray-700">
+              <form onSubmit={handleAddSubject} className="mb-4 space-y-2 p-3 bg-gray-800/50 rounded-md border border-gray-700">
                 <div className="grid grid-cols-2 gap-2">
                   <input required value={subjectForm.first_name} onChange={(e) => setSubjectForm({ ...subjectForm, first_name: e.target.value })}
                     placeholder="First name" className="rounded bg-gray-800 border border-gray-700 text-white text-xs px-2 py-1.5 placeholder:text-gray-500" />
@@ -350,6 +391,18 @@ export default function CaseDetailPage() {
                     placeholder="Email" type="email" className="rounded bg-gray-800 border border-gray-700 text-white text-xs px-2 py-1.5 placeholder:text-gray-500" />
                   <input value={subjectForm.phone} onChange={(e) => setSubjectForm({ ...subjectForm, phone: e.target.value })}
                     placeholder="Phone" className="rounded bg-gray-800 border border-gray-700 text-white text-xs px-2 py-1.5 placeholder:text-gray-500" />
+                  <input value={subjectForm.address_line1} onChange={(e) => setSubjectForm({ ...subjectForm, address_line1: e.target.value })}
+                    placeholder="Street address" className="col-span-2 rounded bg-gray-800 border border-gray-700 text-white text-xs px-2 py-1.5 placeholder:text-gray-500" />
+                  <input value={subjectForm.address_line2} onChange={(e) => setSubjectForm({ ...subjectForm, address_line2: e.target.value })}
+                    placeholder="Apt / Suite (optional)" className="col-span-2 rounded bg-gray-800 border border-gray-700 text-white text-xs px-2 py-1.5 placeholder:text-gray-500" />
+                  <input value={subjectForm.city} onChange={(e) => setSubjectForm({ ...subjectForm, city: e.target.value })}
+                    placeholder="City" className="rounded bg-gray-800 border border-gray-700 text-white text-xs px-2 py-1.5 placeholder:text-gray-500" />
+                  <input value={subjectForm.state} onChange={(e) => setSubjectForm({ ...subjectForm, state: e.target.value })}
+                    placeholder="State" className="rounded bg-gray-800 border border-gray-700 text-white text-xs px-2 py-1.5 placeholder:text-gray-500" />
+                  <input value={subjectForm.zip_code} onChange={(e) => setSubjectForm({ ...subjectForm, zip_code: e.target.value })}
+                    placeholder="ZIP Code" className="rounded bg-gray-800 border border-gray-700 text-white text-xs px-2 py-1.5 placeholder:text-gray-500" />
+                  <input value={subjectForm.country} onChange={(e) => setSubjectForm({ ...subjectForm, country: e.target.value })}
+                    placeholder="Country (optional)" className="rounded bg-gray-800 border border-gray-700 text-white text-xs px-2 py-1.5 placeholder:text-gray-500" />
                 </div>
                 <select value={subjectForm.role} onChange={(e) => setSubjectForm({ ...subjectForm, role: e.target.value })}
                   title="Role" className="w-full rounded bg-gray-800 border border-gray-700 text-white text-xs px-2 py-1.5">
@@ -386,6 +439,18 @@ export default function CaseDetailPage() {
                             placeholder="Email" className="rounded bg-gray-800 border border-gray-700 text-white text-xs px-2 py-1.5" />
                           <input value={editSubjectForm.phone} onChange={(e) => setEditSubjectForm({ ...editSubjectForm, phone: e.target.value })}
                             placeholder="Phone" className="rounded bg-gray-800 border border-gray-700 text-white text-xs px-2 py-1.5" />
+                          <input value={editSubjectForm.address_line1} onChange={(e) => setEditSubjectForm({ ...editSubjectForm, address_line1: e.target.value })}
+                            placeholder="Street address" className="col-span-2 rounded bg-gray-800 border border-gray-700 text-white text-xs px-2 py-1.5" />
+                          <input value={editSubjectForm.address_line2} onChange={(e) => setEditSubjectForm({ ...editSubjectForm, address_line2: e.target.value })}
+                            placeholder="Apt / Suite (optional)" className="col-span-2 rounded bg-gray-800 border border-gray-700 text-white text-xs px-2 py-1.5" />
+                          <input value={editSubjectForm.city} onChange={(e) => setEditSubjectForm({ ...editSubjectForm, city: e.target.value })}
+                            placeholder="City" className="rounded bg-gray-800 border border-gray-700 text-white text-xs px-2 py-1.5" />
+                          <input value={editSubjectForm.state} onChange={(e) => setEditSubjectForm({ ...editSubjectForm, state: e.target.value })}
+                            placeholder="State" className="rounded bg-gray-800 border border-gray-700 text-white text-xs px-2 py-1.5" />
+                          <input value={editSubjectForm.zip_code} onChange={(e) => setEditSubjectForm({ ...editSubjectForm, zip_code: e.target.value })}
+                            placeholder="ZIP Code" className="rounded bg-gray-800 border border-gray-700 text-white text-xs px-2 py-1.5" />
+                          <input value={editSubjectForm.country} onChange={(e) => setEditSubjectForm({ ...editSubjectForm, country: e.target.value })}
+                            placeholder="Country (optional)" className="rounded bg-gray-800 border border-gray-700 text-white text-xs px-2 py-1.5" />
                         </div>
                         <select value={editSubjectForm.role} onChange={(e) => setEditSubjectForm({ ...editSubjectForm, role: e.target.value })}
                           title="Role" className="w-full rounded bg-gray-800 border border-gray-700 text-white text-xs px-2 py-1.5">
@@ -412,6 +477,11 @@ export default function CaseDetailPage() {
                           <p className="text-gray-400 text-xs mt-0.5">
                             {p.email || "—"}{p.phone ? ` · ${p.phone}` : ""}
                           </p>
+                          {(p.address_line1 || p.city || p.state) && (
+                            <p className="text-gray-500 text-xs mt-0.5 truncate">
+                              {[p.address_line1, p.city, p.state, p.zip_code].filter(Boolean).join(", ")}
+                            </p>
+                          )}
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
                           <button type="button" onClick={() => openAura({ task: "subject_profile", personId: p.id })}
