@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { login } from "@/lib/api";
 import { setTokens } from "@/lib/auth";
 import Image from "next/image";
@@ -17,7 +18,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: { preventDefault(): void }) {
     e.preventDefault();
     setError("");
     setLoading(true);
@@ -72,6 +73,12 @@ export default function LoginPage() {
             >
               {loading ? "Signing in..." : "Sign In"}
             </Button>
+            <p className="text-center text-sm text-gray-500">
+              Don&apos;t have an account?{" "}
+              <Link href="/register" className="text-[#C4922A] hover:underline">
+                Create one
+              </Link>
+            </p>
           </form>
         </CardContent>
       </Card>

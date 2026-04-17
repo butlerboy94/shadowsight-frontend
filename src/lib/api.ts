@@ -33,6 +33,14 @@ api.interceptors.response.use(
 export const login = (username: string, password: string) =>
   api.post("/api/auth/token/", { username, password });
 
+export const register = (data: {
+  username: string;
+  email: string;
+  password: string;
+  first_name?: string;
+  last_name?: string;
+}) => api.post("/api/auth/register/", data);
+
 export const getMe = () => api.get("/api/auth/me/");
 
 // ── Account / Profile ─────────────────────────────────────────────────────────
