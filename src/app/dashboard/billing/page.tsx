@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { getBillingStatus, createCheckoutSession, createPortalSession } from "@/lib/api";
@@ -45,7 +45,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 const PLAN_ORDER = ["small_firm", "medium_firm", "large_firm", "enterprise", "nationwide"];
 
-export default function BillingPage() {
+function BillingPage() {
   const searchParams = useSearchParams();
   const [org, setOrg] = useState<OrgData | null>(null);
   const [sub, setSub] = useState<SubData | null>(null);
@@ -72,7 +72,6 @@ export default function BillingPage() {
   useEffect(() => {
     if (searchParams.get("success") === "1") {
       toast.success("Subscription activated! Welcome to your new plan.");
-      // Delay refetch to give webhook time to process
       setTimeout(() => fetchBilling(), 2000);
     } else if (searchParams.get("canceled") === "1") {
       toast("Checkout canceled. Your plan was not changed.");
@@ -216,7 +215,6 @@ export default function BillingPage() {
       <div>
         <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
           <h2 className="text-white font-semibold">Plans</h2>
-          {/* Monthly / Annual toggle */}
           <div className="flex items-center gap-3 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg p-1">
             <button
               type="button"
@@ -260,7 +258,6 @@ export default function BillingPage() {
                     : "border-[#2a2a2a] hover:border-[#444]"
                 }`}
               >
-                {/* Plan header */}
                 <div className="flex items-start justify-between">
                   <div>
                     <div className="flex items-center gap-2 text-white font-semibold">
@@ -281,7 +278,6 @@ export default function BillingPage() {
                   )}
                 </div>
 
-                {/* Price */}
                 <div>
                   {isCustom ? (
                     <div className="text-white text-2xl font-bold">Custom</div>
@@ -300,7 +296,6 @@ export default function BillingPage() {
                   )}
                 </div>
 
-                {/* Features */}
                 <ul className="space-y-2 flex-1">
                   {plan.features.map((f) => (
                     <li key={f} className="flex items-start gap-2 text-gray-300 text-sm">
@@ -310,7 +305,6 @@ export default function BillingPage() {
                   ))}
                 </ul>
 
-                {/* CTA */}
                 {isCurrentInterval ? (
                   <div className="text-center text-gray-500 text-sm py-2 border border-[#2a2a2a] rounded-lg">
                     Current plan
@@ -353,5 +347,13 @@ export default function BillingPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function BillingPageWrapper() {
+  return (
+    <Suspense fallback={<p className="text-gray-400 text-sm p-4">Loading...</p>}>
+      <BillingPage />
+    </Suspense>
   );
 }

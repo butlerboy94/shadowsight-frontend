@@ -59,7 +59,7 @@ function OsintResultCard({ result }: { result: Record<string, unknown> }): React
   return (
     <div className="space-y-3">
       {/* Summary banner */}
-      {result.summary && (
+      {Boolean(result.summary) && (
         <div className="bg-gray-800 rounded-md px-3 py-2">
           <p className="text-white text-sm">{String(result.summary)}</p>
         </div>
